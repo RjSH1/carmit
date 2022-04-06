@@ -1,0 +1,156 @@
+valuesFilePath: ./values.yml
+resources:
+  - name: playground_bitbucket
+    type: GitRepo
+    configuration:
+      path: ~CARMITH/spring-boot-playground
+      gitProvider: JFrog_bitbucket
+      branches:
+        include: ^{{gitBranch}}$
+
+  - name: playground_spring_maven_build_info
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: entplus_deployer
+      buildName: ba_services_playground
+      buildNumber: $run_number
+  - name: playground_spring_xray_build_info
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: entplus_deployer
+      buildName: ba_services_playground
+      buildNumber: $run_number
+
+  - name: playground_spring_docker_build_info
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: entplus_deployer
+      buildName: ba_services_playground
+      buildNumber: $run_number
+
+  - name: playground_spring_jfrog_io_docker_image
+    type: Image
+    configuration:
+      registry: art_jfrog_io
+      sourceRepository: art-docker-dev-local
+      imageName: art.jfrog.io/jfrog/ba/services/playground
+      imageTag: latest
+
+  - name: jenkins_metadata_bin_build_info1
+    type: BuildInfo
+    configuration:
+      sourceArtifactory: entplus_deployer
+      buildName: ba_services_playground
+      buildNumber: $run_number
+
+pipelines:
+  - name: playground_spring_maven
+    steps:
+      - name: trigger_pipeline
+        type: Bash
+        execution:
+          onExecute:
+            - echo "starting the build!"
+
+      - name: mvn_build_step
+        type: MvnBuild
+        configuration:
+          mvnCommand: clean install -DskipTests
+            #sonar:sonar -B
+          deployerSnapshotRepo: ba-services-maven-virtual
+          deployerReleaseRepo: ba-services-maven-virtual
+          resolverSnapshotRepo: ba-services-maven-virtual
+          resolverReleaseRepo: ba-services-maven-virtual
+          autoPublishBuildInfo: true
+          inputSteps:
+            - name: trigger_pipeline
+          inputResources:
+            - name: playground_bitbucket
+              trigger: true
+          integrations:
+            - name: entplus_deployer
+            - name: carmit_bitbucket_ssh
+            #- name: JFrog_bitbucket
+          outputResources:
+            - name: playground_spring_maven_build_info
+          runtime:
+            type: image
+            image:
+              auto:
+                language: java
+                versions:
+                  - 11
+          environmentVariables:
+            testsRun:
+              default: -DskipTests
+        execution:
+          onSuccess:
+            - echo "start tagging"
+            - pushd ${res_playground_bitbucket_resourcePath}
+            - pwd
+            - ls -ltr
+            - ls -ltr ~/.ssh/
+            - git config core.sshCommand "ssh -i ~/.ssh/carmit_bitbucket_ssh  -F /dev/null"
+            - cat ~/.ssh/carmit_bitbucket_ssh
+            - git config user.email "carmith@jfrog.com"
+            - git config user.name "Carmit Hershman"
+#            - git config  remote.origin.url "ssh://git@git.jfrog.info/~carmith/spring-boot-playground.git"
+#            - git remote set-url origin git@git.jfrog.info/~carmith/spring-boot-playground.git
+#            - git config  remote.origin.pushurl "https://git.jfrog.info/scm/~carmith/spring-boot-playground.git"
+            - git  config  --list
+            - git tag "testTag"
+            - git push origin testTag
+            - popd
+
+
+
+      - name: docker_build
+        type: DockerBuild
+        configuration:
+          affinityGroup: dbp_group
+          dockerFileLocation: .
+          dockerFileName: Dockerfile
+          dockerImageName: art.jfrog.io/jfrog/ba/services/playground
+          dockerImageTag: ${run_number}
+          dockerOptions: --build-arg JAR_LOCATION=./
+          inputSteps:
+            - name: mvn_build_step
+          inputResources:
+            - name: playground_bitbucket
+            - name: playground_spring_maven_build_info
+          outputResources:
+            - name: playground_spring_docker_build_info
+          integrations:
+            - name: entplus_deployer
+          environmentVariables:
+            build_number:
+              default: $res_playground_spring_maven_build_info_buildNumber
+        execution:
+          onStart:
+            # need to take the artifact create on mvn build step do we can docker build it
+            # this will not work if you dont run the build first
+            - echo "Preparing for work..."
+            - pwd
+            - echo "$PIPELINE_WORKSPACE_DIR"
+            - echo "${steplet_workspace_dir}"
+            - env
+            - cd $res_playground_bitbucket_resourcePath
+            - jfrog rt download --flat --build-name playground_spring_maven --build-number  $build_number ba-services-maven-virtual/org/jfrog/spring-boot-playground/0.0.1-SNAPSHOT/spring-boot-playground-0.0.1-\*.jar spring-boot-playground-0.0.1-SNAPSHOT.jar
+            - ls -ltr .
+
+      - name: docker_push
+        type: DockerPush
+        configuration:
+          forceXrayScan: true
+          affinityGroup: dbp_group
+          targetRepository: art-docker-dev-local
+          integrations:
+            - name: entplus_deployer
+            - name: art_jfrog_io
+          inputSteps:
+            - name: docker_build
+          inputResources:
+            - name: playground_spring_docker_build_info
+            - name: playground_spring_xray_build_info
+          outputResources:
+            - name: playground_spring_jfrog_io_docker_image
