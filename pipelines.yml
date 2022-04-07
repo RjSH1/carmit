@@ -4,7 +4,7 @@ resources:
     type: GitRepo
     configuration:
       path: ~CARMITH/spring-boot-playground
-      gitProvider: JFrog_bitbucket
+      gitProvider: myGithub
       branches:
         include: ^{{gitBranch}}$
 
