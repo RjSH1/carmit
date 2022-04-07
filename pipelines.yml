@@ -3,7 +3,7 @@ resources:
   - name: playground_bitbucket
     type: GitRepo
     configuration:
-      path: ~CARMITH/spring-boot-playground
+      path: RjSH1/carmit
       gitProvider: myGithub
       branches:
         include: ^{{gitBranch}}$
