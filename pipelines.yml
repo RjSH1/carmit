@@ -69,7 +69,8 @@ pipelines:
               trigger: true
           integrations:
             - name: entplus_deployer
-            - name: carmit_bitbucket_ssh
+            #- name: carmit_bitbucket_ssh
+            - name: carmit_bitbucket_ssh1
             #- name: JFrog_bitbucket
           outputResources:
             - name: playground_spring_maven_build_info
@@ -90,8 +91,10 @@ pipelines:
             - pwd
             - ls -ltr
             - ls -ltr ~/.ssh/
-            - git config core.sshCommand "ssh -i ~/.ssh/carmit_bitbucket_ssh  -F /dev/null"
+            - git config core.sshCommand "ssh -i ~/.ssh/carmit_bitbucket_ssh1  -F /dev/null"
             - cat ~/.ssh/carmit_bitbucket_ssh
+            #- git config core.sshCommand "ssh -i ~/.ssh/carmit_bitbucket_ssh1  -F /dev/null"
+            #- cat ~/.ssh/carmit_bitbucket_ssh            
             - git config user.email "carmith@jfrog.com"
             - git config user.name "Carmit Hershman"
 #            - git config  remote.origin.url "ssh://git@git.jfrog.info/~carmith/spring-boot-playground.git"
