@@ -4,7 +4,7 @@ resources:
     type: GitRepo
     configuration:
       path: RjSH1/carmit
-      gitProvider: myGithub
+      gitProvider: ACMEGit
       branches:
         include: ^{{gitBranch}}$
 
